@@ -1,14 +1,17 @@
-import { Request, Response } from 'express';
-import { executeQuery } from '../db/connection.js';
-import { ApiResponse } from '../types/index.js';
+import { Request, Response } from "express";
+import { executeQuery } from "../db/connection.js";
+import { ApiResponse } from "../types/index.js";
 import crypto from "crypto";
 import { generateMascotaCardPdf } from "../utils/generateMascotaCardPdf.js";
 import { mailer } from "../utils/sendMail.js";
 import ExcelJS from "exceljs";
-import { autosizeColumns, buildMonthRange } from "../utils/excel";
+import { autosizeColumns, buildMonthRange } from "../utils/excel.js";
 
 // Get all mascotas with their solicitud info
-export const getMascotas = async (req: Request, res: Response): Promise<void> => {
+export const getMascotas = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const query = `
       SELECT 
@@ -24,24 +27,27 @@ export const getMascotas = async (req: Request, res: Response): Promise<void> =>
     const mascotas = await executeQuery(query);
 
     if (mascotas.length > 0) {
-      console.log('🔍 DEBUG: First mascota item:', mascotas[0]);
+      console.log("🔍 DEBUG: First mascota item:", mascotas[0]);
     }
 
     res.json({
       success: true,
-      data: mascotas
+      data: mascotas,
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting mascotas:', error);
+    console.error("Error getting mascotas:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Get mascota by ID
-export const getMascotaById = async (req: Request, res: Response): Promise<void> => {
+export const getMascotaById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -59,26 +65,29 @@ export const getMascotaById = async (req: Request, res: Response): Promise<void>
     if (mascota.length === 0) {
       res.status(404).json({
         success: false,
-        error: 'Mascota not found'
+        error: "Mascota not found",
       } as ApiResponse);
       return;
     }
 
     res.json({
       success: true,
-      data: mascota[0]
+      data: mascota[0],
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting mascota by ID:', error);
+    console.error("Error getting mascota by ID:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Get mascota statistics
-export const getMascotaStats = async (req: Request, res: Response): Promise<void> => {
+export const getMascotaStats = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const stats = await executeQuery(`
       SELECT 
@@ -95,18 +104,21 @@ export const getMascotaStats = async (req: Request, res: Response): Promise<void
 
     res.json({
       success: true,
-      data: stats[0]
+      data: stats[0],
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting mascota stats:', error);
+    console.error("Error getting mascota stats:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
-export const createMascota = async (req: Request, res: Response): Promise<void> => {
+export const createMascota = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const {
       email_contacto,
@@ -186,7 +198,7 @@ export const createMascota = async (req: Request, res: Response): Promise<void> 
         INNER JOIN detalles_mascotas m ON s.id_solicitud = m.id_solicitud
         WHERE s.id_solicitud = ?
       `,
-      [id_solicitud]
+      [id_solicitud],
     );
 
     res.status(201).json({
@@ -202,10 +214,15 @@ export const createMascota = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-export const updateMascotaEstado = async (req: Request, res: Response): Promise<void> => {
+export const updateMascotaEstado = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
-    const { estado } = req.body as { estado: "pendiente" | "aprobado" | "rechazado" };
+    const { estado } = req.body as {
+      estado: "pendiente" | "aprobado" | "rechazado";
+    };
 
     if (!estado || !["pendiente", "aprobado", "rechazado"].includes(estado)) {
       res.status(400).json({
@@ -238,7 +255,7 @@ export const updateMascotaEstado = async (req: Request, res: Response): Promise<
         INNER JOIN detalles_mascotas m ON s.id_solicitud = m.id_solicitud
         WHERE s.id_solicitud = ? AND s.tipo_solicitud = 'mascota'
       `,
-      [id]
+      [id],
     );
 
     const mascota = updated[0];
@@ -290,16 +307,23 @@ type DetalleMascotaRow = {
   // si tu tabla tiene más columnas, agrégalas aquí y abajo en columns
 };
 
-export const exportDetallesMascotasExcel = async (req: Request, res: Response) => {
+export const exportDetallesMascotasExcel = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const year = Number(req.query.year);
     const month = Number(req.query.month);
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-      return res.status(400).json({ message: "Parámetro 'year' inválido. Ej: 2026" });
+      return res
+        .status(400)
+        .json({ message: "Parámetro 'year' inválido. Ej: 2026" });
     }
     if (!Number.isInteger(month) || month < 1 || month > 12) {
-      return res.status(400).json({ message: "Parámetro 'month' inválido. Debe ser 1-12" });
+      return res
+        .status(400)
+        .json({ message: "Parámetro 'month' inválido. Debe ser 1-12" });
     }
 
     const { start, end } = buildMonthRange(year, month);
@@ -356,7 +380,7 @@ export const exportDetallesMascotasExcel = async (req: Request, res: Response) =
 
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
@@ -371,11 +395,13 @@ export const exportDetallesMascotasExcel = async (req: Request, res: Response) =
   }
 };
 
-
 // Traer meses de la db
 type MesDisponible = { year: number; month: number };
 
-export const getMesesMascotasDisponibles = async (req: Request, res: Response) => {
+export const getMesesMascotasDisponibles = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const query = `
       SELECT
@@ -397,3 +423,4 @@ export const getMesesMascotasDisponibles = async (req: Request, res: Response) =
     });
   }
 };
+

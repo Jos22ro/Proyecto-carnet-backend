@@ -1,14 +1,17 @@
-import { Request, Response } from 'express';
-import crypto from 'crypto';
-import { executeQuery } from '../db/connection.js';
-import { ApiResponse } from '../types/index.js';
+import { Request, Response } from "express";
+import crypto from "crypto";
+import { executeQuery } from "../db/connection.js";
+import { ApiResponse } from "../types/index.js";
 import ExcelJS from "exceljs";
 import { generateEmprendedorCardPdf } from "../utils/generateEmprendedorCardPdf.js";
 import { mailer } from "../utils/sendMail.js";
-import { autosizeColumns, buildMonthRange } from "../utils/excel";
+import { autosizeColumns, buildMonthRange } from "../utils/excel.js";
 
 // Get all emprendedores with their solicitud info
-export const getEmprendedores = async (req: Request, res: Response): Promise<void> => {
+export const getEmprendedores = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const query = `
       SELECT 
@@ -28,16 +31,19 @@ export const getEmprendedores = async (req: Request, res: Response): Promise<voi
       data: emprendedores,
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting emprendedores:', error);
+    console.error("Error getting emprendedores:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Get emprendedor by ID
-export const getEmprendedorById = async (req: Request, res: Response): Promise<void> => {
+export const getEmprendedorById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -55,7 +61,7 @@ export const getEmprendedorById = async (req: Request, res: Response): Promise<v
     if (!Array.isArray(emprendedor) || emprendedor.length === 0) {
       res.status(404).json({
         success: false,
-        error: 'Emprendedor not found',
+        error: "Emprendedor not found",
       } as ApiResponse);
       return;
     }
@@ -65,16 +71,19 @@ export const getEmprendedorById = async (req: Request, res: Response): Promise<v
       data: emprendedor[0],
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting emprendedor by ID:', error);
+    console.error("Error getting emprendedor by ID:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Get emprendedor statistics
-export const getEmprendedorStats = async (req: Request, res: Response): Promise<void> => {
+export const getEmprendedorStats = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const stats = await executeQuery(`
       SELECT 
@@ -94,21 +103,24 @@ export const getEmprendedorStats = async (req: Request, res: Response): Promise<
       data: Array.isArray(stats) ? stats[0] : stats,
     } as ApiResponse);
   } catch (error) {
-    console.error('Error getting emprendedor stats:', error);
+    console.error("Error getting emprendedor stats:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // POST - Create emprendedor (guarda en solicitudes + detalles_emprendedores)
-export const createEmprendedor = async (req: Request, res: Response): Promise<void> => {
+export const createEmprendedor = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const {
       // solicitud
       email_contacto,
-      origen = 'manual',
+      origen = "manual",
 
       // detalles_emprendedores (sin ids)
       documento_titular,
@@ -124,16 +136,22 @@ export const createEmprendedor = async (req: Request, res: Response): Promise<vo
     } = req.body;
 
     // Validación mínima
-    if (!email_contacto || !documento_titular || !tipo_persona || !['natural', 'juridica'].includes(tipo_persona)) {
+    if (
+      !email_contacto ||
+      !documento_titular ||
+      !tipo_persona ||
+      !["natural", "juridica"].includes(tipo_persona)
+    ) {
       res.status(400).json({
         success: false,
-        error: 'Faltan campos obligatorios: email_contacto, documento_titular, tipo_persona (natural o juridica)',
+        error:
+          "Faltan campos obligatorios: email_contacto, documento_titular, tipo_persona (natural o juridica)",
       } as ApiResponse);
       return;
     }
 
     // ✅ Generar hash único para QR (evita errores por NOT NULL/UNIQUE)
-    const codigo_qr_hash = crypto.randomBytes(16).toString('hex'); // 32 chars
+    const codigo_qr_hash = crypto.randomBytes(16).toString("hex"); // 32 chars
 
     // 1) Insert en solicitudes (aprobado)
     const insertSolicitudQuery = `
@@ -195,7 +213,7 @@ export const createEmprendedor = async (req: Request, res: Response): Promise<vo
         INNER JOIN detalles_emprendedores e ON s.id_solicitud = e.id_solicitud
         WHERE s.id_solicitud = ?
       `,
-      [id_solicitud]
+      [id_solicitud],
     );
 
     res.status(201).json({
@@ -203,18 +221,23 @@ export const createEmprendedor = async (req: Request, res: Response): Promise<vo
       data: Array.isArray(created) ? created[0] : created,
     } as ApiResponse);
   } catch (error: any) {
-    console.error('Error creating emprendedor:', error);
+    console.error("Error creating emprendedor:", error);
     res.status(500).json({
       success: false,
-      error: error?.sqlMessage || error?.message || 'Internal server error',
+      error: error?.sqlMessage || error?.message || "Internal server error",
     } as ApiResponse);
   }
 };
 
-export const updateEmprendedorEstado = async (req: Request, res: Response): Promise<void> => {
+export const updateEmprendedorEstado = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
-    const { estado } = req.body as { estado: "pendiente" | "aprobado" | "rechazado" };
+    const { estado } = req.body as {
+      estado: "pendiente" | "aprobado" | "rechazado";
+    };
 
     if (!estado || !["pendiente", "aprobado", "rechazado"].includes(estado)) {
       res.status(400).json({
@@ -247,7 +270,7 @@ export const updateEmprendedorEstado = async (req: Request, res: Response): Prom
         INNER JOIN detalles_emprendedores e ON s.id_solicitud = e.id_solicitud
         WHERE s.id_solicitud = ? AND s.tipo_solicitud = 'emprendedor'
       `,
-      [id]
+      [id],
     );
 
     const emprendedor = updated[0];
@@ -286,11 +309,13 @@ export const updateEmprendedorEstado = async (req: Request, res: Response): Prom
   }
 };
 
-
 // Traer meses disponibles de la db
 type MesDisponible = { year: number; month: number };
 
-export const getMesesEmprendedoresDisponibles = async (req: Request, res: Response) => {
+export const getMesesEmprendedoresDisponibles = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const query = `
       SELECT
@@ -328,16 +353,23 @@ type EmprendedorRow = {
   rubro: string | null;
 };
 
-export const exportDetallesEmprendedoresExcel = async (req: Request, res: Response) => {
+export const exportDetallesEmprendedoresExcel = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const year = Number(req.query.year);
     const month = Number(req.query.month);
 
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-      return res.status(400).json({ message: "Parámetro 'year' inválido. Ej: 2026" });
+      return res
+        .status(400)
+        .json({ message: "Parámetro 'year' inválido. Ej: 2026" });
     }
     if (!Number.isInteger(month) || month < 1 || month > 12) {
-      return res.status(400).json({ message: "Parámetro 'month' inválido. Debe ser 1-12" });
+      return res
+        .status(400)
+        .json({ message: "Parámetro 'month' inválido. Debe ser 1-12" });
     }
 
     const { start, end } = buildMonthRange(year, month);
@@ -392,7 +424,10 @@ export const exportDetallesEmprendedoresExcel = async (req: Request, res: Respon
     autosizeColumns(ws);
 
     const fileName = `detalles_emprendedores_${year}-${String(month).padStart(2, "0")}.xlsx`;
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     await workbook.xlsx.write(res);
     return res.end();
@@ -404,3 +439,4 @@ export const exportDetallesEmprendedoresExcel = async (req: Request, res: Respon
     });
   }
 };
+
