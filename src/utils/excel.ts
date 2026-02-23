@@ -10,7 +10,7 @@ export function autosizeColumns(worksheet: ExcelJS.Worksheet, min = 12, max = 40
   worksheet.columns.forEach((col) => {
     let longest = col.header ? String(col.header).length : min;
 
-    col.eachCell({ includeEmpty: true }, (cell) => {
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
       const v: any = cell.value;
       const len = v == null ? 0 : String(v).length;
       if (len > longest) longest = len;

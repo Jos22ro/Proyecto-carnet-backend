@@ -361,10 +361,10 @@ export const exportDetallesMascotasExcel = async (req: Request, res: Response) =
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
     await workbook.xlsx.write(res);
-    res.end();
+    return res.end();
   } catch (error: any) {
     console.error(error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error generando el Excel",
       error: String(error?.message || error),
     });

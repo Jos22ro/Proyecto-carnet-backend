@@ -236,8 +236,11 @@ export async function generateMascotaCardPdf(data: any): Promise<Buffer> {
     const qrDataUrl = await QRCode.toDataURL(data.codigo_qr_hash, {
       width: 60,
     });
-    const qrBuffer = Buffer.from(qrDataUrl.split(",")[1], "base64");
-    doc.image(qrBuffer, contentX + 10, cardY + 45, { width: 60 });
+    const qrBase64 = qrDataUrl.split(",")[1];
+    if (qrBase64) {
+      const qrBuffer = Buffer.from(qrBase64, "base64");
+      doc.image(qrBuffer, contentX + 10, cardY + 45, { width: 60 });
+    }
 
     doc
       .fillColor("#4CAF50")
