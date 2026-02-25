@@ -1,29 +1,32 @@
-import { Request, Response } from 'express';
-import crypto from 'crypto';
-import { 
-  executeQuery, 
-  executeQueryOne, 
-  executeInsert, 
+import { Request, Response } from "express";
+import crypto from "crypto";
+import {
+  executeQuery,
+  executeQueryOne,
+  executeInsert,
   executeUpdate,
-  executeTransaction
-} from '../db/connection.js';
-import { 
-  Solicitud, 
-  SolicitudFilters, 
-  ApiResponse, 
+  executeTransaction,
+} from "../db/connection.js";
+import {
+  Solicitud,
+  SolicitudFilters,
+  ApiResponse,
   PaginatedResponse,
   CreateSolicitudRequest,
   UpdateSolicitudRequest,
-  SolicitudConDetalles
-} from '../types/index.js';
+  SolicitudConDetalles,
+} from "../types/index.js";
 
 // Generate QR hash
 const generateQRHash = (email: string): string => {
-  return crypto.createHash('md5').update(`${email}${Date.now()}`).digest('hex');
+  return crypto.createHash("md5").update(`${email}${Date.now()}`).digest("hex");
 };
 
 // Get all solicitudes with filters and pagination
-export const getSolicitudes = async (req: Request, res: Response): Promise<void> => {
+export const getSolicitudes = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const {
       estado,
@@ -33,7 +36,7 @@ export const getSolicitudes = async (req: Request, res: Response): Promise<void>
       fecha_inicio,
       fecha_fin,
       page = 1,
-      limit = 20
+      limit = 20,
     } = req.query as SolicitudFilters;
 
     const pageNum = Math.max(Number(page) || 1, 1);
@@ -75,11 +78,16 @@ export const getSolicitudes = async (req: Request, res: Response): Promise<void>
     }
 
     const whereClause =
-      whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
 
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM solicitudes ${whereClause}`;
-    const countResult = await executeQueryOne<{ total: bigint }>(countQuery, params);
+    const countResult = await executeQueryOne<{ total: bigint }>(
+      countQuery,
+      params,
+    );
     const total = Number(countResult?.total || 0);
 
     // ✅ IMPORTANTE: NO usar ? en LIMIT/OFFSET
@@ -102,90 +110,101 @@ export const getSolicitudes = async (req: Request, res: Response): Promise<void>
         page: pageNum,
         limit: limitNum,
         total,
-        totalPages
-      }
+        totalPages,
+      },
     } as PaginatedResponse<Solicitud>);
   } catch (error: any) {
     console.error("Error getting solicitudes:", error);
     res.status(500).json({
       success: false,
-      error: error?.sqlMessage || error?.message || "Internal server error"
+      error: error?.sqlMessage || error?.message || "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Get solicitud by ID with details
-export const getSolicitudById = async (req: Request, res: Response): Promise<void> => {
+export const getSolicitudById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
 
     // Get main solicitud
     const solicitud = await executeQueryOne<Solicitud>(
-      'SELECT * FROM solicitudes WHERE id_solicitud = ?',
-      [id]
+      "SELECT * FROM solicitudes WHERE id_solicitud = ?",
+      [id],
     );
 
     if (!solicitud) {
       res.status(404).json({
         success: false,
-        error: 'Solicitud not found'
+        error: "Solicitud not found",
       } as ApiResponse);
       return;
     }
 
-    let detalles = null;
+    let detalles: any = null;
 
     // Get specific details based on type
     switch (solicitud.tipo_solicitud) {
-      case 'emprendedor':
+      case "emprendedor":
         detalles = await executeQueryOne(
-          'SELECT * FROM detalles_emprendedores WHERE id_solicitud = ?',
-          [id]
+          "SELECT * FROM detalles_emprendedores WHERE id_solicitud = ?",
+          [id],
         );
         break;
-      case 'mascota':
+      case "mascota":
         detalles = await executeQueryOne(
-          'SELECT * FROM detalles_mascotas WHERE id_solicitud = ?',
-          [id]
+          "SELECT * FROM detalles_mascotas WHERE id_solicitud = ?",
+          [id],
         );
         break;
     }
 
     // Get logs
     const logs = await executeQuery(
-      'SELECT * FROM logs_envio WHERE id_solicitud = ? ORDER BY fecha_envio DESC',
-      [id]
+      "SELECT * FROM logs_envio WHERE id_solicitud = ? ORDER BY fecha_envio DESC",
+      [id],
     );
 
     const solicitudCompleta: SolicitudConDetalles = {
       ...solicitud,
-      detalles,
-      logs_envio: logs
+      detalles: detalles === null ? undefined : detalles,
+      logs_envio: logs,
     };
 
     res.json({
       success: true,
-      data: solicitudCompleta
+      data: solicitudCompleta,
     } as ApiResponse<SolicitudConDetalles>);
   } catch (error) {
-    console.error('Error getting solicitud by ID:', error);
+    console.error("Error getting solicitud by ID:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Create new solicitud
-export const createSolicitud = async (req: Request, res: Response): Promise<void> => {
+export const createSolicitud = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
-    const { tipo_solicitud, origen, email_contacto, detalles }: CreateSolicitudRequest = req.body;
+    const {
+      tipo_solicitud,
+      origen,
+      email_contacto,
+      detalles,
+    }: CreateSolicitudRequest = req.body;
 
     // Validate required fields
     if (!tipo_solicitud || !origen || !email_contacto || !detalles) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields'
+        error: "Missing required fields",
       } as ApiResponse);
       return;
     }
@@ -199,13 +218,13 @@ export const createSolicitud = async (req: Request, res: Response): Promise<void
           INSERT INTO solicitudes (tipo_solicitud, origen, email_contacto, codigo_qr_hash)
           VALUES (?, ?, ?, ?)
         `,
-        params: [tipo_solicitud, origen, email_contacto, qrHash]
-      }
+        params: [tipo_solicitud, origen, email_contacto, qrHash],
+      },
     ];
 
     // Add specific details query
     switch (tipo_solicitud) {
-      case 'emprendedor':
+      case "emprendedor":
         const emp = detalles as any;
         queries.push({
           query: `
@@ -216,7 +235,7 @@ export const createSolicitud = async (req: Request, res: Response): Promise<void
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           params: [
-            'LAST_INSERT_ID()',
+            "LAST_INSERT_ID()",
             emp.documento_titular,
             emp.razon_social,
             emp.nombre_comercial || null,
@@ -226,18 +245,24 @@ export const createSolicitud = async (req: Request, res: Response): Promise<void
             emp.direccion_fisica,
             emp.telefono_contacto,
             emp.fecha_vencimiento || null,
-            emp.rubro || null
-          ]
+            emp.rubro || null,
+          ],
         });
         break;
-      case 'mascota':
+      case "mascota":
         const masc = detalles as any;
         queries.push({
           query: `
             INSERT INTO detalles_mascotas (id_solicitud, nombre_mascota, especie, raza, nombre_tutor)
             VALUES (?, ?, ?, ?, ?)
           `,
-          params: ['LAST_INSERT_ID()', masc.nombre_mascota, masc.especie, masc.raza, masc.nombre_tutor]
+          params: [
+            "LAST_INSERT_ID()",
+            masc.nombre_mascota,
+            masc.especie,
+            masc.raza,
+            masc.nombre_tutor,
+          ],
         });
         break;
     }
@@ -250,34 +275,37 @@ export const createSolicitud = async (req: Request, res: Response): Promise<void
 
     res.status(201).json({
       success: true,
-      message: 'Solicitud created successfully',
-      data: solicitud
+      message: "Solicitud created successfully",
+      data: solicitud,
     } as ApiResponse<SolicitudConDetalles>);
   } catch (error) {
-    console.error('Error creating solicitud:', error);
+    console.error("Error creating solicitud:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Update solicitud
-export const updateSolicitud = async (req: Request, res: Response): Promise<void> => {
+export const updateSolicitud = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
     const updates: UpdateSolicitudRequest = req.body;
 
     // Check if solicitud exists
     const existing = await executeQueryOne<Solicitud>(
-      'SELECT * FROM solicitudes WHERE id_solicitud = ?',
-      [id]
+      "SELECT * FROM solicitudes WHERE id_solicitud = ?",
+      [id],
     );
 
     if (!existing) {
       res.status(404).json({
         success: false,
-        error: 'Solicitud not found'
+        error: "Solicitud not found",
       } as ApiResponse);
       return;
     }
@@ -287,24 +315,24 @@ export const updateSolicitud = async (req: Request, res: Response): Promise<void
     const params: any[] = [];
 
     if (updates.estado !== undefined) {
-      updateFields.push('estado = ?');
+      updateFields.push("estado = ?");
       params.push(updates.estado);
-      
-      if (updates.estado === 'aprobado') {
-        updateFields.push('fecha_aprobacion = ?');
+
+      if (updates.estado === "aprobado") {
+        updateFields.push("fecha_aprobacion = ?");
         params.push(new Date());
       }
     }
 
     if (updates.email_contacto !== undefined) {
-      updateFields.push('email_contacto = ?');
+      updateFields.push("email_contacto = ?");
       params.push(updates.email_contacto);
     }
 
     if (updateFields.length === 0) {
       res.status(400).json({
         success: false,
-        error: 'No valid fields to update'
+        error: "No valid fields to update",
       } as ApiResponse);
       return;
     }
@@ -313,7 +341,7 @@ export const updateSolicitud = async (req: Request, res: Response): Promise<void
 
     const updateQuery = `
       UPDATE solicitudes 
-      SET ${updateFields.join(', ')}
+      SET ${updateFields.join(", ")}
       WHERE id_solicitud = ?
     `;
 
@@ -324,62 +352,70 @@ export const updateSolicitud = async (req: Request, res: Response): Promise<void
 
     res.json({
       success: true,
-      message: 'Solicitud updated successfully',
-      data: solicitud
+      message: "Solicitud updated successfully",
+      data: solicitud,
     } as ApiResponse<SolicitudConDetalles>);
   } catch (error) {
-    console.error('Error updating solicitud:', error);
+    console.error("Error updating solicitud:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Delete solicitud
-export const deleteSolicitud = async (req: Request, res: Response): Promise<void> => {
+export const deleteSolicitud = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params;
 
     // Check if solicitud exists
     const existing = await executeQueryOne<Solicitud>(
-      'SELECT * FROM solicitudes WHERE id_solicitud = ?',
-      [id]
+      "SELECT * FROM solicitudes WHERE id_solicitud = ?",
+      [id],
     );
 
     if (!existing) {
       res.status(404).json({
         success: false,
-        error: 'Solicitud not found'
+        error: "Solicitud not found",
       } as ApiResponse);
       return;
     }
 
     // Delete in transaction (logs first, then details, then main)
     await executeTransaction([
-      { query: 'DELETE FROM logs_envio WHERE id_solicitud = ?', params: [id] },
-      { query: `DELETE FROM detalles_${existing.tipo_solicitud}s WHERE id_solicitud = ?`, params: [id] },
-      { query: 'DELETE FROM solicitudes WHERE id_solicitud = ?', params: [id] }
+      { query: "DELETE FROM logs_envio WHERE id_solicitud = ?", params: [id] },
+      {
+        query: `DELETE FROM detalles_${existing.tipo_solicitud}s WHERE id_solicitud = ?`,
+        params: [id],
+      },
+      { query: "DELETE FROM solicitudes WHERE id_solicitud = ?", params: [id] },
     ]);
 
     res.json({
       success: true,
-      message: 'Solicitud deleted successfully'
+      message: "Solicitud deleted successfully",
     } as ApiResponse);
   } catch (error) {
-    console.error('Error deleting solicitud:', error);
+    console.error("Error deleting solicitud:", error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     } as ApiResponse);
   }
 };
 
 // Helper function to get solicitud with details
-async function getSolicitudWithDetails(id: number): Promise<SolicitudConDetalles | null> {
+async function getSolicitudWithDetails(
+  id: number,
+): Promise<SolicitudConDetalles | null> {
   const solicitud = await executeQueryOne<Solicitud>(
-    'SELECT * FROM solicitudes WHERE id_solicitud = ?',
-    [id]
+    "SELECT * FROM solicitudes WHERE id_solicitud = ?",
+    [id],
   );
 
   if (!solicitud) return null;
@@ -387,22 +423,23 @@ async function getSolicitudWithDetails(id: number): Promise<SolicitudConDetalles
   let detalles = null;
 
   switch (solicitud.tipo_solicitud) {
-    case 'emprendedor':
+    case "emprendedor":
       detalles = await executeQueryOne(
-        'SELECT * FROM detalles_emprendedores WHERE id_solicitud = ?',
-        [id]
+        "SELECT * FROM detalles_emprendedores WHERE id_solicitud = ?",
+        [id],
       );
       break;
-    case 'mascota':
+    case "mascota":
       detalles = await executeQueryOne(
-        'SELECT * FROM detalles_mascotas WHERE id_solicitud = ?',
-        [id]
+        "SELECT * FROM detalles_mascotas WHERE id_solicitud = ?",
+        [id],
       );
       break;
   }
 
   return {
     ...solicitud,
-    detalles
+    detalles: detalles as any,
   };
 }
+
