@@ -193,8 +193,11 @@ function testWebhook() {
     email_contacto: 'test@example.com',
     documento_titular: '12345678',
     razon_social: 'Empresa de Prueba',
+    nombre_comercial: 'Nombre Comercial Prueba',
     direccion_fisica: 'Dirección de prueba',
-    telefono_contacto: '+1234567890'
+    telefono_contacto: '+1234567890',
+    tipo_persona: 'natural',
+    rubro: 'Comercio'
   };
   
   sendToWebhook(testData);

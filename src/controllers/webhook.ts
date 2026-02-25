@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { 
-  executeInsert, 
-  executeTransaction 
+  executeInsert
 } from '../db/connection.js';
 import { 
   WebhookFormData, 
@@ -38,30 +37,24 @@ export const receiveFormSubmission = async (req: Request, res: Response): Promis
     // Generate QR hash (simple implementation)
     const qrHash = Buffer.from(`${formData.email_contacto}${Date.now()}`).toString('base64').substring(0, 32);
 
-    // Build queries based on type
-    const queries: any[] = [
-      {
-        query: `
-          INSERT INTO solicitudes (tipo_solicitud, estado, origen, email_contacto, codigo_qr_hash)
-          VALUES (?, 'pendiente', 'formulario', ?, ?)
-        `,
-        params: [formData.tipo_solicitud, formData.email_contacto, qrHash]
-      }
-    ];
+    // Execute INSERT into solicitudes first
+    const solicitudId = await executeInsert(
+      `INSERT INTO solicitudes (tipo_solicitud, estado, origen, email_contacto, codigo_qr_hash)
+       VALUES (?, 'pendiente', 'formulario', ?, ?)`,
+      [formData.tipo_solicitud, formData.email_contacto, qrHash]
+    );
 
-    // Add specific details query based on type
+    // Insert details based on type
     switch (formData.tipo_solicitud) {
       case 'emprendedor':
-        queries.push({
-          query: `
-            INSERT INTO detalles_emprendedores (
-              id_solicitud, documento_titular, razon_social, nombre_comercial, 
-              registro_fiscal, descripcion_actividad, tipo_persona, direccion_fisica, 
-              telefono_contacto, fecha_vencimiento, rubro
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          params: [
-            'LAST_INSERT_ID()',
+        await executeInsert(
+          `INSERT INTO detalles_emprendedores (
+            id_solicitud, documento_titular, razon_social, nombre_comercial, 
+            registro_fiscal, descripcion_actividad, tipo_persona, direccion_fisica, 
+            telefono_contacto, fecha_vencimiento, rubro
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            Number(solicitudId),
             formData.documento_titular || '',
             formData.razon_social || '',
             formData.nombre_comercial || null,
@@ -73,23 +66,21 @@ export const receiveFormSubmission = async (req: Request, res: Response): Promis
             formData.fecha_vencimiento ? new Date(formData.fecha_vencimiento) : null,
             formData.rubro || null
           ]
-        });
+        );
         break;
 
       case 'mascota':
-        queries.push({
-          query: `
-            INSERT INTO detalles_mascotas (id_solicitud, nombre_mascota, especie, raza, nombre_tutor)
-            VALUES (?, ?, ?, ?, ?)
-          `,
-          params: [
-            'LAST_INSERT_ID()',
+        await executeInsert(
+          `INSERT INTO detalles_mascotas (id_solicitud, nombre_mascota, especie, raza, nombre_tutor)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            Number(solicitudId),
             formData.nombre_mascota || '',
             formData.especie || '',
             formData.raza || '',
             formData.nombre_tutor || ''
           ]
-        });
+        );
         break;
 
       default:
@@ -99,10 +90,6 @@ export const receiveFormSubmission = async (req: Request, res: Response): Promis
         } as ApiResponse);
         return;
     }
-
-    // Execute transaction
-    const results = await executeTransaction(queries);
-    const solicitudId = (results[0] as any).insertId;
 
     // Log the webhook receipt
     await executeInsert(
