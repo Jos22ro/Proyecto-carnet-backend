@@ -102,7 +102,7 @@ export const receiveFormSubmission = async (req: Request, res: Response): Promis
       success: true,
       message: 'Form submission processed successfully',
       data: {
-        solicitud_id: solicitudId,
+        solicitud_id: Number(solicitudId),
         qr_hash: qrHash,
         status: 'pendiente'
       }
