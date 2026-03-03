@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import crypto from 'crypto';
 import { 
   executeInsert
 } from '../db/connection.js';
@@ -34,8 +35,7 @@ export const receiveFormSubmission = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Generate QR hash (simple implementation)
-    const qrHash = Buffer.from(`${formData.email_contacto}${Date.now()}`).toString('base64').substring(0, 32);
+    const qrHash = crypto.randomBytes(16).toString('hex');
 
     // Execute INSERT into solicitudes first
     const solicitudId = await executeInsert(
